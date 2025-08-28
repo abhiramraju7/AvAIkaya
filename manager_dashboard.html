@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manager Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container mt-4">
+        <h1 class="text-center text-primary">Manager Dashboard</h1>
+
+        <!-- Sales Overview & Revenue Forecast -->
+        <div class="row">
+            <div class="col-md-6">
+                <h4>Total Sales Overview</h4>
+                <canvas id="salesChart"></canvas>
+            </div>
+            <div class="col-md-6">
+                <h4>Revenue Forecast</h4>
+                <p><strong>Last 30 Days Revenue:</strong> <span id="lastRevenue">$Loading...</span></p>
+                <p><strong>Projected Next Month Revenue:</strong> <span id="forecastRevenue">$Loading...</span></p>
+            </div>
+        </div>
+
+        <!-- Revenue Graph -->
+        <div class="mt-4">
+            <h4>Daily Revenue Trend</h4>
+            <canvas id="revenueChart"></canvas>
+        </div>
+
+        <!-- AI Model Toggle Buttons -->
+        <div class="text-center mt-4">
+            <h4>AI Revenue Predictions</h4>
+            <button class="btn btn-primary" id="bestModelBtn" onclick="updateGraph('best')">Best Model (Loading...)</button>
+            <button class="btn btn-secondary" onclick="updateGraph('Linear')">Linear</button>
+            <button class="btn btn-secondary" onclick="updateGraph('Exponential')">Exponential</button>
+            <button class="btn btn-secondary" onclick="updateGraph('Polynomial')">Polynomial</button>
+            <button class="btn btn-secondary" onclick="updateGraph('Logarithmic')">Logarithmic</button>
+        </div>
+
+        <!-- Transactions Table -->
+        <div class="mt-4">
+            <input type="text" id="searchInput" class="form-control" placeholder="Search transactions..." onkeyup="filterTransactions()">
+        </div>
+        <div class="mt-3">
+            <h4>Recent Transactions</h4>
+            <table class="table table-bordered">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Date</th>
+                        <th>Product</th>
+                        <th>Quantity</th>
+                        <th>Amount</th>
+                    </tr>
+                </thead>
+                <tbody id="transactionTable"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+        let aiData = null;
+        let revenueChart = null;
+
+        // Mapping function names
+        const modelFunctions = {
+            "Linear": "y = ax + b",
+            "Exponential": "y = a * e^(bx)",
+            "Polynomial": "y = ax² + bx + c",
+            "Logarithmic": "y = a * log(x) + b"
+        };
+
+        async function fetchAIRevenueModel() {
+            try {
+                const response = await fetch('/api/ai_revenue_model');
+                aiData = await response.json();
+
+                if (!aiData || !aiData.best_model || !aiData.models) {
+                    console.error("AI data is missing.");
+                    document.getElementById('bestModelBtn').innerText = "Error";
+                    return;
+                }
+
+                // Set the best model button with function equation
+                const bestModelFunction = modelFunctions[aiData.best_model] || "Unknown Function";
+                document.getElementById('bestModelBtn').innerText = `Best Model (${aiData.best_model}: ${bestModelFunction})`;
+
+                updateGraph('best');
+            } catch (error) {
+                console.error("Error fetching AI revenue model:", error);
+            }
+        }
+
+        function updateGraph(modelType) {
+            if (!aiData || !aiData.dates || !aiData.real_revenue) {
+                console.error("AI data is missing.");
+                return;
+            }
+
+            const labels = aiData.dates;
+            const realRevenue = aiData.real_revenue;
+            let aiFit = modelType === 'best' ? aiData.best_fit : aiData.models[modelType];
+
+            if (!aiFit) {
+                console.error("AI model data is missing for:", modelType);
+                return;
+            }
+
+            if (revenueChart) {
+                revenueChart.destroy();
+            }
+
+            const ctx = document.getElementById('revenueChart').getContext('2d');
+            revenueChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'Actual Revenue ($)', data: realRevenue, borderColor: 'blue', fill: false },
+                        { label: `AI Prediction (${modelType})`, data: aiFit, borderColor: 'red', borderDash: [5, 5], fill: false }
+                    ]
+                }
+            });
+
+            // Toggle button highlight
+            document.querySelectorAll('.btn').forEach(btn => btn.classList.remove('btn-primary'));
+            document.querySelectorAll('.btn').forEach(btn => btn.classList.add('btn-secondary'));
+            document.querySelector(`button[onclick="updateGraph('${modelType}')"]`).classList.remove('btn-secondary');
+            document.querySelector(`button[onclick="updateGraph('${modelType}')"]`).classList.add('btn-primary');
+        }
+
+        async function fetchSalesOverview() {
+            try {
+                const response = await fetch('/api/sales_overview');
+                const data = await response.json();
+
+                document.getElementById("lastRevenue").innerText = `$${data.last_30_days}`;
+                document.getElementById("forecastRevenue").innerText = `$${data.forecast_next_month}`;
+
+                new Chart(document.getElementById("salesChart"), {
+                    type: "bar",
+                    data: {
+                        labels: ["Total Sales", "Orders"],
+                        datasets: [{
+                            label: "Sales Overview",
+                            data: [data.total_sales, data.total_orders],
+                            backgroundColor: ["blue", "green"]
+                        }]
+                    }
+                });
+            } catch (error) {
+                console.error("Error fetching sales overview:", error);
+            }
+        }
+
+        async function fetchTransactions() {
+            try {
+                const response = await fetch('/api/transaction_data');
+                const transactions = await response.json();
+                const tableBody = document.getElementById("transactionTable");
+
+                tableBody.innerHTML = "";
+
+                transactions.forEach(t => {
+                    let row = `<tr>
+                        <td>${t.date}</td>
+                        <td>${t.product}</td>
+                        <td>${t.quantity}</td>
+                        <td>$${t.amount.toFixed(2)}</td>
+                    </tr>`;
+                    tableBody.innerHTML += row;
+                });
+            } catch (error) {
+                console.error("Error fetching transactions:", error);
+            }
+        }
+
+        function filterTransactions() {
+            let input = document.getElementById("searchInput").value.toLowerCase();
+            let rows = document.getElementById("transactionTable").getElementsByTagName("tr");
+
+            for (let row of rows) {
+                let text = row.innerText.toLowerCase();
+                row.style.display = text.includes(input) ? "" : "none";
+            }
+        }
+
+        fetchAIRevenueModel();
+        fetchSalesOverview();
+        fetchTransactions();
+    </script>
+</body>
+</html>

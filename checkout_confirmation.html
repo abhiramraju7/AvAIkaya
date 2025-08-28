@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Checkout Confirmation</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            text-align: center;
+            padding: 50px;
+        }
+
+        h1 {
+            background-color: #4CAF50;
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        .confirmation-message {
+            font-size: 1.5em;
+            margin: 20px 0;
+        }
+
+        .order-summary {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            margin-top: 20px;
+        }
+
+        a {
+            text-decoration: none;
+            color: white;
+            background-color: #4CAF50;
+            padding: 10px 20px;
+            border-radius: 4px;
+            margin-top: 20px;
+            display: inline-block;
+        }
+
+        a:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Thank You for Your Purchase!</h1>
+
+    <div class="confirmation-message">
+        <p>Your order has been successfully placed and your payment has been processed.</p>
+    </div>
+
+    <div class="order-summary">
+        <h3>Order Summary</h3>
+        <p>Items in your order:</p>
+        <ul>
+            {% for item in cart_items %}
+                <li>{{ item.product.name }} (x{{ item.quantity }}) - ${{ item.product.price * item.quantity }}</li>
+            {% endfor %}
+        </ul>
+        <p><strong>Total: ${{ total_amount }}</strong></p>
+    </div>
+
+    <a href="{{ url_for('home') }}">Return to Home</a>
+
+</body>
+</html>

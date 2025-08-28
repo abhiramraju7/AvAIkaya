@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Forecast</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> <!-- Chart.js Library -->
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+
+        h1 {
+            background-color: #333;
+            color: #fff;
+            padding: 10px 0;
+            text-align: center;
+        }
+
+        .container {
+            width: 80%;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .ingredient-item {
+            margin: 10px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        canvas {
+            max-width: 100%;
+            height: 400px;
+            margin-top: 40px;
+        }
+
+        .low-stock-warning {
+            margin-top: 20px;
+            font-size: 18px;
+            color: red;
+        }
+
+        input {
+            padding: 5px;
+            margin-left: 10px;
+            width: 60px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Order Ingredients and View Stock Levels</h1>
+
+        <div>
+            <h2>Order More Ingredients</h2>
+            {% for ingredient in ingredient_data %}
+                <div class="ingredient-item">
+                    <span>{{ ingredient.name }}: {{ ingredient.stock }} units</span>
+                    <input type="number" id="quantity-{{ ingredient.name }}" value="10" min="1">
+                    <button onclick="orderMore('{{ ingredient.name }}')">Restock</button>
+                </div>
+            {% endfor %}
+        </div>
+
+        <h2>Real-Time Ingredient Stock Levels</h2>
+        <canvas id="stockChart"></canvas>  <!-- Chart.js Canvas for Real-Time Graph -->
+
+        <div class="low-stock-warning" id="lowStockWarning"></div>
+    </div>
+
+    <script>
+        // Mock data for ingredient stock (can be updated via backend)
+        let ingredientStock = {
+            "Chilli Powder": 50,
+            "Garlic": 30,
+            "Vinegar": 80,
+            "Mustard Seeds": 40,
+            "Oil": 200,
+            "Salt": 100
+        };
+
+        const lowStockThreshold = 20;  // Set the threshold for low stock warning
+
+        // Function to handle "Order More" action
+        function orderMore(ingredient) {
+            const quantityInput = document.getElementById(`quantity-${ingredient}`);
+            const quantity = parseInt(quantityInput.value, 10);  // Get the quantity from the input field
+
+            if (isNaN(quantity) || quantity <= 0) {
+                alert("Please enter a valid quantity!");
+                return;
+            }
+
+            // Call backend API to update the stock
+            fetch('/api/order_more', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ingredient: ingredient, quantity: quantity })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.message) {
+                    // Update the ingredient stock locally
+                    ingredientStock[ingredient] += quantity;
+                    updateGraph();
+                    updateLowStockWarnings();
+                    alert(`${ingredient} restocked by ${quantity} units.`);
+                }
+            })
+            .catch(error => {
+                console.error("Error updating stock:", error);
+                alert("Failed to update stock.");
+            });
+        }
+
+        // Function to update the graph with real-time stock levels
+        function updateGraph() {
+            const ctx = document.getElementById('stockChart').getContext('2d');
+            const labels = Object.keys(ingredientStock);
+            const data = Object.values(ingredientStock);
+
+            if (window.stockChart) {
+                window.stockChart.destroy();  // Destroy the old chart to avoid multiple graphs
+            }
+
+            window.stockChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Ingredient Stock Levels',
+                        data: data,
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        // Function to check for low stock and display warning
+        function updateLowStockWarnings() {
+            const lowStockIngredients = Object.keys(ingredientStock).filter(ingredient => ingredientStock[ingredient] < lowStockThreshold);
+            const warningElement = document.getElementById('lowStockWarning');
+
+            if (lowStockIngredients.length > 0) {
+                warningElement.innerHTML = `Low Stock Warning: ${lowStockIngredients.join(', ')}`;
+            } else {
+                warningElement.innerHTML = '';
+            }
+        }
+
+        // Initial graph render
+        window.onload = function() {
+            updateGraph();
+            updateLowStockWarnings();
+        };
+    </script>
+</body>
+</html>

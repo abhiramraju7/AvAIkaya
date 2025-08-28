@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+
+        h1 {
+            background-color: #333;
+            color: #fff;
+            padding: 10px 0;
+            text-align: center;
+        }
+
+        .container {
+            width: 400px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .container label {
+            display: block;
+            margin: 10px 0 5px;
+        }
+
+        .container input, .container select {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0 20px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+
+        .container button {
+            width: 100%;
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .container button:hover {
+            background-color: #45a049;
+        }
+
+        .container a {
+            color: #4CAF50;
+            text-decoration: none;
+        }
+
+        .container a:hover {
+            text-decoration: underline;
+        }
+
+        .flash {
+            color: red;
+            text-align: center;
+            margin-top: 10px;
+        }
+
+        #passkey-field {
+            display: none;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Register</h1>
+
+        <!-- Display error or success messages -->
+        <div id="flash-message" class="flash"></div>
+
+        <!-- Registration form -->
+        <form id="register-form">
+            <label for="username">Username:</label>
+            <input type="text" id="username" name="username" required><br>
+
+            <label for="email">Email:</label>
+            <input type="email" id="email" name="email" required><br>
+
+            <label for="password">Password:</label>
+            <input type="password" id="password" name="password" required><br>
+
+            <label for="confirm_password">Confirm Password:</label>
+            <input type="password" id="confirm_password" name="confirm_password" required><br>
+
+            <label for="role">Role:</label>
+            <select name="role" id="role" required onchange="togglePasskeyField()">
+                <option value="customer">Customer</option>
+                <option value="manager">Manager</option>
+            </select><br>
+
+            <div id="passkey-field">
+                <label for="passkey">Manager Passkey:</label>
+                <input type="text" id="passkey" name="passkey" placeholder="Enter manager passkey"><br>
+            </div>
+
+            <button type="submit">Register</button>
+        </form>
+
+        <p>Already have an account? <a href="{{ url_for('login') }}">Login here</a></p>
+    </div>
+
+    <script>
+        // Show passkey field for manager role
+        function togglePasskeyField() {
+            var role = document.getElementById("role").value;
+            var passkeyField = document.getElementById("passkey-field");
+
+            if (role === "manager") {
+                passkeyField.style.display = "block";
+            } else {
+                passkeyField.style.display = "none";
+            }
+        }
+
+        // Handle form submission via AJAX with validation
+        document.getElementById('register-form').addEventListener('submit', function(event) {
+            event.preventDefault(); // Prevent form from submitting the traditional way
+
+            var username = document.getElementById('username').value;
+            var password = document.getElementById('password').value;
+            var confirm_password = document.getElementById('confirm_password').value;
+
+            // Validate Username (must be between 3 and 20 characters)
+            if (username.length < 3 || username.length > 20) {
+                document.getElementById('flash-message').innerHTML = 'Username must be between 3 and 20 characters!';
+                document.getElementById('flash-message').style.color = 'red';
+                return;
+            }
+
+            // Validate Password (must be at least 7 characters long)
+            if (password.length < 7) {
+                document.getElementById('flash-message').innerHTML = 'Password must be at least 7 characters long!';
+                document.getElementById('flash-message').style.color = 'red';
+                return;
+            }
+
+            // Validate Password Match
+            if (password !== confirm_password) {
+                document.getElementById('flash-message').innerHTML = 'Passwords do not match!';
+                document.getElementById('flash-message').style.color = 'red';
+                return;
+            }
+
+            var formData = new FormData(this);
+
+            // Send the form data using AJAX (fetch API)
+            fetch('/register', {
+                method: 'POST',
+                body: formData,
+            })
+            .then(response => response.json())
+            .then(data => {
+                // If registration is successful
+                if (data.success) {
+                    document.getElementById('flash-message').innerHTML = 'Registration successful! Please log in.';
+                    document.getElementById('flash-message').style.color = 'green';
+                    // Optionally redirect the user to login page after success
+                    setTimeout(() => window.location.href = '/login', 2000);
+                } else {
+                    document.getElementById('flash-message').innerHTML = data.message;
+                    document.getElementById('flash-message').style.color = 'red';
+                }
+            })
+            .catch(error => {
+                document.getElementById('flash-message').innerHTML = 'An error occurred. Please try again.';
+                document.getElementById('flash-message').style.color = 'red';
+            });
+        });
+    </script>
+
+
+</body>
+</html>
